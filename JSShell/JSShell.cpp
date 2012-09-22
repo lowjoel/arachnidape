@@ -23,6 +23,7 @@ namespace {
 
 	void StartJavaScriptShell(const ExecutionArguments& arguments);
 	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe);
+	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -137,9 +138,41 @@ namespace {
 		CopyOutputArguments stdErrReaderArgs = { stdErrRead, thisStdErrWrite };
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr);
 
-		//Before we do stdin (for interactivity), we need to load all the files the user specified in order.
-		for (std::vector<TCHAR*>::const_iterator i = arguments.FilesToExecute.begin();
-			i != arguments.FilesToExecute.end(); ++i)
+		//Before we do stdin (for interactivity), we need to load all the files
+		//the user specified in order.
+		LoadJavaScriptSources(arguments.FilesToExecute, stdInWrite.get());
+		
+		//Then we handle the situation where we may need interactivity, or not.
+		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
+		if (arguments.RunInteractively)
+		{
+			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
+			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
+		}
+		else
+		{
+			SendJavaScriptShellCommand("quit();", stdInWrite.get());
+		}
+
+		//Wait for the process to terminate
+		WaitForSingleObject(jsShellProcess.get(), INFINITE);
+	}
+
+	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe)
+	{
+		//Wrap the command with a with(window) {}
+		const std::string commandText = "with (window) {" + command + "}";
+
+		DWORD read = 0;
+		WriteFile(pipe, commandText.c_str(), commandText.length(), &read, nullptr);
+		WriteFile(pipe, "\r\n", 2, &read, nullptr);
+		FlushFileBuffers(pipe);
+	}
+
+	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe)
+	{
+		for (std::vector<TCHAR*>::const_iterator i = files.begin();
+			i != files.end(); ++i)
 		{
 			//Do character conversions first.
 			std::string fileName;
@@ -180,34 +213,8 @@ namespace {
 			std::ostringstream stream;
 			
 			stream << "load(\"" << fileName << "\");";
-			SendJavaScriptShellCommand(stream.str(), stdInWrite.get());
+			SendJavaScriptShellCommand(stream.str(), pipe);
 		}
-
-		//Then we handle the situation where we may need interactivity, or not.
-		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
-		if (arguments.RunInteractively)
-		{
-			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
-			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
-		}
-		else
-		{
-			SendJavaScriptShellCommand("quit();", stdInWrite.get());
-		}
-
-		//Wait for the process to terminate
-		WaitForSingleObject(jsShellProcess.get(), INFINITE);
-	}
-
-	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe)
-	{
-		//Wrap the command with a with(window) {}
-		const std::string commandText = "with (window) {" + command + "}";
-
-		DWORD read = 0;
-		WriteFile(pipe, commandText.c_str(), commandText.length(), &read, nullptr);
-		WriteFile(pipe, "\r\n", 2, &read, nullptr);
-		FlushFileBuffers(pipe);
 	}
 
 	unsigned int __stdcall CopyOutput(void* arg)
