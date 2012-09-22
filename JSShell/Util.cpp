@@ -66,8 +66,13 @@ void CopyOutput(const CopyOutputArguments& arg)
 			break;
 		}
 
+		//Allow filtering
+		buffer.resize(read);
+		if (arg.Filter)
+			arg.Filter(buffer);
+
 		//Write the output to the destination.
-		WriteFile(arg.Destination.get(), &buffer.front(), read, &read, nullptr);
+		WriteFile(arg.Destination.get(), &buffer.front(), buffer.size(), &read, nullptr);
 		FlushFileBuffers(arg.Destination.get());
 	}
 }

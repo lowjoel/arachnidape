@@ -24,6 +24,8 @@ namespace {
 	void StreamJavaScriptShellCommand(const std::string& command, HANDLE pipe);
 
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
+
+	void JavaScriptStdInFilter(std::vector<char>& buffer);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -158,7 +160,7 @@ namespace {
 		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
 		if (arguments.RunInteractively)
 		{
-			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
+			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite, JavaScriptStdInFilter };
 			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
 		}
 		else
@@ -249,6 +251,32 @@ namespace {
 			//Send closing command.
 			StreamJavaScriptShellCommand("}', { fileName: \"" + wcs2utf8(*i) +
 				"\", newContext: true });\r\n", pipe);
+		}
+	}
+
+	__declspec(thread) bool InWith = false;
+	void JavaScriptStdInFilter(std::vector<char>& buffer)
+	{
+		if (!InWith)
+		{
+			InWith = true;
+			const char const Header[] = "with (window) {";
+			buffer.insert(buffer.begin(), Header, Header + sizeof(Header) - 1);
+		}
+
+		const char* newline = nullptr;
+		{
+			char* bufferPtr = &buffer.front();
+			newline = strstr(bufferPtr, "\r\n");
+			if (!newline)
+				newline = strchr(bufferPtr, '\n');
+		}
+		if (InWith && newline)
+		{
+			InWith = false;
+			const char const Footer[] = "}";
+			buffer.insert(buffer.begin() + (newline - &buffer.front()),
+				Footer, Footer + sizeof(Footer) - 1);
 		}
 	}
 }
