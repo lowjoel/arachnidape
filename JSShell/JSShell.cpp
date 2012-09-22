@@ -4,6 +4,15 @@
 #include "stdafx.h"
 #include "Handle.h"
 
+namespace {
+	struct CopyOutputArguments
+	{
+		const KernelHandle& Source;
+	};
+
+	unsigned int __stdcall CopyOutput(void* arg);
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	STARTUPINFO jsShellStartupInfo = { 0 };
@@ -61,25 +70,40 @@ int _tmain(int argc, _TCHAR* argv[])
 	jsShellStartupInfo.hStdOutput = stdOutWrite.get();
 	jsShellStartupInfo.hStdError = stdErrWrite.get();
 	
+	//Create the process.
 	KernelHandle jsShellProcess;
 	KernelHandle jsShellThread;
 	if (!CreateProcess(nullptr, cmdLine, nullptr, nullptr, true, 0,
 		nullptr, nullptr, &jsShellStartupInfo, &jsShellInfo))
 	{
 		unsigned error = GetLastError();
-		_tprintf_s(_T("Could not start Mozilla JavaScript shell. Is js.exe in your path? [GetLastError()=%d]"),
-			error);
+		_tprintf_s(_T("Could not start Mozilla JavaScript shell. Is js.exe in ")
+			_T("your path? [GetLastError()=%d]"), error);
 		return error;
 	}
-
-	//Create threads to handle stdout and stderr
-	_beginthreadex(
 
 	//Assign the handle to auto-destruct
 	jsShellProcess = KernelHandle(jsShellInfo.hProcess);
 	jsShellThread = KernelHandle(jsShellInfo.hThread);
 
+	//Create threads to handle stdout and stderr
+	CopyOutputArguments stdOutReaderArgs = { stdOutRead };
+	_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
+
+	CopyOutputArguments stdInReaderArgs = { stdInRead };
+	_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
 
 	return 0;
 }
 
+namespace {
+
+	unsigned int __stdcall CopyOutput(void* arg)
+	{
+		CopyOutputArguments& argument =
+			*reinterpret_cast<CopyOutputArguments*>(arg);
+
+		return 0;
+	}
+
+}
