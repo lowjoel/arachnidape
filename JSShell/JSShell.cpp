@@ -5,6 +5,13 @@
 #include "Handle.h"
 
 namespace {
+	struct ExecutionArguments
+	{
+		bool RunInteractively;
+		std::vector<TCHAR*> FilesToExecute;
+		std::vector<TCHAR*> ShellArguments;
+	};
+
 	struct CopyOutputArguments
 	{
 		const KernelHandle& Source;
@@ -14,17 +21,40 @@ namespace {
 	unsigned int __stdcall CopyOutput(void* arg);
 	void CopyOutput(const CopyOutputArguments& arg);
 
-	void StartJavaScriptShell();
+	void StartJavaScriptShell(const ExecutionArguments& arguments);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	StartJavaScriptShell();
+	ExecutionArguments arguments;
+	arguments.RunInteractively = false;
+
+	for (int i = 1; i < argc; ++i)
+	{
+		if (_tcscmp(_T("-f"), argv[i]) == 0 && i + 1 < argc)
+		{
+			arguments.FilesToExecute.push_back(argv[++i]);
+		}
+		else if (_tcscmp(_T("-i"), argv[i]) == 0)
+		{
+			arguments.RunInteractively = true;
+		}
+		else
+		{
+			arguments.ShellArguments.push_back(argv[i]);
+		}
+	}
+
+	//One fix up: if we have no files to execute, we should run interactively.
+	if (arguments.FilesToExecute.empty() && !arguments.RunInteractively)
+		arguments.RunInteractively = true;
+
+	StartJavaScriptShell(arguments);
 }
 
 namespace {
 
-	void StartJavaScriptShell()
+	void StartJavaScriptShell(const ExecutionArguments& arguments)
 	{
 		STARTUPINFO jsShellStartupInfo = { 0 };
 		PROCESS_INFORMATION jsShellInfo = { 0 };
