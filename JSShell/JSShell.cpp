@@ -208,8 +208,12 @@ namespace {
 
 				for (size_t i = 0; i < read; ++i)
 				{
+					//Inject a \ before all \'s and quotes
 					if (buffer[i] == '\'' || buffer[i] == '\\')
 						sendBuffer.push_back('\\');
+
+					//If it is a carriage return/newline, translate it to the JavaScript
+					//equivalent
 					else if (buffer[i] == '\r')
 					{
 						sendBuffer.push_back('\\');
@@ -226,6 +230,7 @@ namespace {
 					sendBuffer.push_back(buffer[i]);
 				}
 
+				//Stream the command.
 				std::string partialCommand(sendBuffer.begin(), sendBuffer.end());
 				StreamJavaScriptShellCommand(partialCommand, pipe);
 				sendBuffer.clear();
