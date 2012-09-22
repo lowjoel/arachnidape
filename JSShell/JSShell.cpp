@@ -13,15 +13,6 @@ namespace {
 		std::vector<TCHAR*> ShellArguments;
 	};
 
-	struct CopyOutputArguments
-	{
-		const KernelHandle& Source;
-		const KernelHandle& Destination;
-	};
-
-	unsigned int __stdcall CopyOutput(void* arg);
-	void CopyOutput(const CopyOutputArguments& arg);
-
 	void StartJavaScriptShell(const ExecutionArguments& arguments);
 
 	/// Sends a command to the Shell using the given pipe and executes it.
@@ -245,41 +236,6 @@ namespace {
 			//Send closing command.
 			StreamJavaScriptShellCommand("}', { fileName: \"" + wcs2utf8(*i) +
 				"\", newContext: true });\r\n", pipe);
-		}
-	}
-
-	unsigned int __stdcall CopyOutput(void* arg)
-	{
-		CopyOutputArguments& argument =
-			*reinterpret_cast<CopyOutputArguments*>(arg);
-
-		CopyOutput(argument);
-		return 0;
-	}
-
-	void CopyOutput(const CopyOutputArguments& arg)
-	{
-		for ( ; ; )
-		{
-			char buffer[16384];
-			DWORD read = 0;
-			if (!ReadFile(arg.Source.get(), buffer, sizeof(buffer) / sizeof(buffer[0]),
-				&read, nullptr))
-			{
-				unsigned lastError = GetLastError();
-				switch (lastError)
-				{
-				case ERROR_INVALID_HANDLE:
-				case ERROR_BROKEN_PIPE:
-					return;
-				}
-
-				break;
-			}
-
-			//Write the output to the destination.
-			WriteFile(arg.Destination.get(), buffer, read, &read, nullptr);
-			FlushFileBuffers(arg.Destination.get());
 		}
 	}
 }
