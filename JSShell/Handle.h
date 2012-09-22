@@ -38,7 +38,7 @@ public:
 
 private:
 	Handle(const Handle&);
-	HandleType& operator=(const HandleType&) const;
+	Handle& operator=(const Handle&);
 
 private:
 	HandleType Instance;
