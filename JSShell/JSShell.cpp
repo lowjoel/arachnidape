@@ -138,6 +138,52 @@ namespace {
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr);
 
 		//Before we do stdin (for interactivity), we need to load all the files the user specified in order.
+		for (std::vector<TCHAR*>::const_iterator i = arguments.FilesToExecute.begin();
+			i != arguments.FilesToExecute.end(); ++i)
+		{
+			//Do character conversions first.
+			std::string fileName;
+			{
+				size_t charsConverted = 0;
+				std::vector<char> chars;
+				chars.resize(_tcslen(*i) * 2 + 1);
+
+				int bytesWritten = 0;
+				while (!(bytesWritten = WideCharToMultiByte(CP_UTF8, 0, *i, -1,
+					&chars.front(), chars.size(), nullptr, nullptr)))
+				{
+					unsigned lastError = GetLastError();
+					switch (lastError)
+					{
+					case ERROR_INSUFFICIENT_BUFFER:
+						chars.resize(chars.size() * 2);
+						break;
+					default:
+						throw lastError;
+					}
+				}
+				chars.resize(bytesWritten);
+				
+				//Replace all \ with \\ 
+				for (int i = 0; i < chars.size(); ++i)
+				{
+					if (chars[i] == '\\')
+					{
+						chars.insert(chars.begin() + i, '\\');
+						++i;
+					}
+				}
+
+				fileName.assign(chars.begin(), chars.end() - 1);
+			}
+
+			std::ostringstream stream;
+			
+			stream << "load(\"" << fileName << "\");";
+			SendJavaScriptShellCommand(stream.str(), stdInWrite.get());
+		}
+
+		//Then we handle the situation where we may need interactivity, or not.
 		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
 		if (arguments.RunInteractively)
 		{
