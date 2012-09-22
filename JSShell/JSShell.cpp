@@ -62,7 +62,7 @@ namespace {
 
 		//Create our command line.
 		TCHAR cmdLine[MAX_PATH];
-		_tcscpy_s(cmdLine, _T("js -f Stub.js -i"));
+		_tcscpy_s(cmdLine, _T("js -U -f Stub.js -i"));
 
 		//Create our process creation information.
 		jsShellStartupInfo.cb = sizeof(jsShellStartupInfo);
