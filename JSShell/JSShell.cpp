@@ -136,9 +136,13 @@ namespace {
 		CopyOutputArguments stdErrReaderArgs = { stdErrRead, thisStdErrWrite };
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr);
 
+		//Before we do stdin (for interactivity), we need to load all the files the user specified in order.
 		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
-		CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
-		_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
+		if (arguments.RunInteractively)
+		{
+			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
+			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
+		}
 
 		//Wait for the process to terminate
 		WaitForSingleObject(jsShellProcess.get(), INFINITE);
