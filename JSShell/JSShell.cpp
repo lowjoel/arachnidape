@@ -201,8 +201,11 @@ namespace {
 
 	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe)
 	{
+		//Wrap the command with a with(window) {}
+		const std::string commandText = "with (window) {" + command + "}";
+
 		DWORD read = 0;
-		WriteFile(pipe, command.c_str(), command.length(), &read, nullptr);
+		WriteFile(pipe, commandText.c_str(), commandText.length(), &read, nullptr);
 		WriteFile(pipe, "\r\n", 2, &read, nullptr);
 		FlushFileBuffers(pipe);
 	}
