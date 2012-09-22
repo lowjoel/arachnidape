@@ -61,8 +61,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		if (!CreatePipe(&hStdErrRead, &hStdErrWrite, &saAttr, 0))
 			throw GetLastError();
-		stdErrRead = KernelHandle(hStdOutRead);
-		stdErrWrite = KernelHandle(hStdOutWrite);
+		stdErrRead = KernelHandle(hStdErrRead);
+		stdErrWrite = KernelHandle(hStdErrWrite);
 
 		//Don't let the child process inherit the stdin write handle.
 		SetHandleInformation(stdErrRead.get(), HANDLE_FLAG_INHERIT, 0);
