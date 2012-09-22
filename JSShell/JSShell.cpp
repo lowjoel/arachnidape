@@ -22,7 +22,13 @@ namespace {
 	void CopyOutput(const CopyOutputArguments& arg);
 
 	void StartJavaScriptShell(const ExecutionArguments& arguments);
+
+	/// Sends a command to the Shell using the given pipe and executes it.
 	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe);
+
+	/// Sends a command to the Shell using the given pipe, but does not
+	/// flush the buffer.
+	void StreamJavaScriptShellCommand(const std::string& command, HANDLE pipe)
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
 }
 
@@ -163,10 +169,16 @@ namespace {
 		//Wrap the command with a with(window) {}
 		const std::string commandText = "with (window) {" + command + "}";
 
-		DWORD read = 0;
-		WriteFile(pipe, commandText.c_str(), commandText.length(), &read, nullptr);
-		WriteFile(pipe, "\r\n", 2, &read, nullptr);
+		//Send the command.
+		StreamJavaScriptShellCommand(commandText, pipe);
+		StreamJavaScriptShellCommand("\r\n", pipe);
 		FlushFileBuffers(pipe);
+	}
+
+	void StreamJavaScriptShellCommand(const std::string& command, HANDLE pipe)
+	{
+		DWORD read = 0;
+		WriteFile(pipe, command.c_str(), command.length(), &read, nullptr);
 	}
 
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe)
