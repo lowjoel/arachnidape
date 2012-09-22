@@ -22,6 +22,7 @@ namespace {
 	void CopyOutput(const CopyOutputArguments& arg);
 
 	void StartJavaScriptShell(const ExecutionArguments& arguments);
+	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -143,9 +144,21 @@ namespace {
 			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
 			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
 		}
+		else
+		{
+			SendJavaScriptShellCommand("quit();", stdInWrite.get());
+		}
 
 		//Wait for the process to terminate
 		WaitForSingleObject(jsShellProcess.get(), INFINITE);
+	}
+
+	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe)
+	{
+		DWORD read = 0;
+		WriteFile(pipe, command.c_str(), command.length(), &read, nullptr);
+		WriteFile(pipe, "\r\n", 2, &read, nullptr);
+		FlushFileBuffers(pipe);
 	}
 
 	unsigned int __stdcall CopyOutput(void* arg)
