@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "Handle.h"
+#include "Util.h"
 
 namespace {
 	struct ExecutionArguments
@@ -28,7 +29,8 @@ namespace {
 
 	/// Sends a command to the Shell using the given pipe, but does not
 	/// flush the buffer.
-	void StreamJavaScriptShellCommand(const std::string& command, HANDLE pipe)
+	void StreamJavaScriptShellCommand(const std::string& command, HANDLE pipe);
+
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
 }
 
@@ -186,46 +188,58 @@ namespace {
 		for (std::vector<TCHAR*>::const_iterator i = files.begin();
 			i != files.end(); ++i)
 		{
-			//Do character conversions first.
-			std::string fileName;
+			//Send the opening command
+			StreamJavaScriptShellCommand("evaluate('with (window) {", pipe);
+
+			KernelHandle fileHandle(CreateFile(*i, GENERIC_READ, 0, nullptr,
+				OPEN_ALWAYS, 0, nullptr));
+
+			//Send the file to the Shell.
+			char buffer[65536];
+			DWORD read = 0;
+			std::vector<char> sendBuffer;
+			while (ReadFile(fileHandle.get(), buffer, sizeof(buffer) / sizeof(buffer[0]),
+				&read, nullptr))
 			{
-				size_t charsConverted = 0;
-				std::vector<char> chars;
-				chars.resize(_tcslen(*i) * 2 + 1);
+				if (!read)
+					break;
 
-				int bytesWritten = 0;
-				while (!(bytesWritten = WideCharToMultiByte(CP_UTF8, 0, *i, -1,
-					&chars.front(), chars.size(), nullptr, nullptr)))
+				sendBuffer.reserve(read);
+
+				for (size_t i = 0; i < read; ++i)
 				{
-					unsigned lastError = GetLastError();
-					switch (lastError)
+					if (buffer[i] == '\'' || buffer[i] == '\\')
+						sendBuffer.push_back('\\');
+					else if (buffer[i] == '\r')
 					{
-					case ERROR_INSUFFICIENT_BUFFER:
-						chars.resize(chars.size() * 2);
-						break;
-					default:
-						throw lastError;
+						sendBuffer.push_back('\\');
+						sendBuffer.push_back('r');
+						continue;
 					}
-				}
-				chars.resize(bytesWritten);
-				
-				//Replace all \ with \\ 
-				for (int i = 0; i < chars.size(); ++i)
-				{
-					if (chars[i] == '\\')
+					else if (buffer[i] == '\n')
 					{
-						chars.insert(chars.begin() + i, '\\');
-						++i;
+						sendBuffer.push_back('\\');
+						sendBuffer.push_back('n');
+						continue;
 					}
+
+					sendBuffer.push_back(buffer[i]);
 				}
 
-				fileName.assign(chars.begin(), chars.end() - 1);
+				std::string partialCommand(sendBuffer.begin(), sendBuffer.end());
+				StreamJavaScriptShellCommand(partialCommand, pipe);
+				sendBuffer.clear();
 			}
 
-			std::ostringstream stream;
-			
-			stream << "load(\"" << fileName << "\");";
-			SendJavaScriptShellCommand(stream.str(), pipe);
+			switch (GetLastError())
+			{
+			default:
+				;
+			}
+
+			//Send closing command.
+			StreamJavaScriptShellCommand("}', { fileName: \"" + wcs2utf8(*i) +
+				"\", newContext: true });\r\n", pipe);
 		}
 	}
 
