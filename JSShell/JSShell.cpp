@@ -22,7 +22,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	//Create our command line.
 	TCHAR cmdLine[MAX_PATH];
-	_tcscpy_s(cmdLine, _T("js -f Stub.js -f -"));
+	_tcscpy_s(cmdLine, _T("js -f Stub.js -i"));
 
 	//Create our process creation information.
 	jsShellStartupInfo.cb = sizeof(jsShellStartupInfo);
