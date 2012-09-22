@@ -94,8 +94,15 @@ int _tmain(int argc, _TCHAR* argv[])
 	_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
 
 	KernelHandle thisStdErrWrite = GetStdHandle(STD_ERROR_HANDLE);
-	CopyOutputArguments stdInReaderArgs = { stdInRead, thisStdErrWrite };
+	CopyOutputArguments stdErrReaderArgs = { stdErrRead, thisStdErrWrite };
+	_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr);
+
+	KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
+	CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite };
 	_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
+
+	//Wait for the process to terminate
+	WaitForSingleObject(jsShellProcess.get(), INFINITE);
 
 	return 0;
 }
@@ -106,6 +113,7 @@ namespace {
 		CopyOutputArguments& argument =
 			*reinterpret_cast<CopyOutputArguments*>(arg);
 
+		CopyOutput(argument);
 		return 0;
 	}
 
@@ -121,8 +129,9 @@ namespace {
 				unsigned lastError = GetLastError();
 				switch (lastError)
 				{
-				default:
-					;
+				case ERROR_INVALID_HANDLE:
+				case ERROR_BROKEN_PIPE:
+					return;
 				}
 
 				break;
@@ -130,6 +139,7 @@ namespace {
 
 			//Write the output to the destination.
 			WriteFile(arg.Destination.get(), buffer, read, &read, nullptr);
+			FlushFileBuffers(arg.Destination.get());
 		}
 	}
 }
