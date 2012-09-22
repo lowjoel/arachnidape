@@ -18,6 +18,13 @@ public:
 		Close(Instance);
 	}
 
+	Handle& operator=(Handle& rhs)
+	{
+		Instance = rhs.Instance;
+		rhs.Instance = nullptr;
+		return *this;
+	}
+
 	HandleType release()
 	{
 		HandleType handle = Instance;
@@ -38,7 +45,6 @@ public:
 
 private:
 	Handle(const Handle&);
-	Handle& operator=(const Handle&);
 
 private:
 	HandleType Instance;
