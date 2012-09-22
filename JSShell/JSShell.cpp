@@ -8,9 +8,11 @@ namespace {
 	struct CopyOutputArguments
 	{
 		const KernelHandle& Source;
+		const KernelHandle& Destination;
 	};
 
 	unsigned int __stdcall CopyOutput(void* arg);
+	void CopyOutput(const CopyOutputArguments& arg);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -87,17 +89,18 @@ int _tmain(int argc, _TCHAR* argv[])
 	jsShellThread = KernelHandle(jsShellInfo.hThread);
 
 	//Create threads to handle stdout and stderr
-	CopyOutputArguments stdOutReaderArgs = { stdOutRead };
+	KernelHandle thisStdOutWrite = GetStdHandle(STD_OUTPUT_HANDLE);
+	CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite };
 	_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
 
-	CopyOutputArguments stdInReaderArgs = { stdInRead };
+	KernelHandle thisStdErrWrite = GetStdHandle(STD_ERROR_HANDLE);
+	CopyOutputArguments stdInReaderArgs = { stdInRead, thisStdErrWrite };
 	_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
 
 	return 0;
 }
 
 namespace {
-
 	unsigned int __stdcall CopyOutput(void* arg)
 	{
 		CopyOutputArguments& argument =
@@ -106,4 +109,27 @@ namespace {
 		return 0;
 	}
 
+	void CopyOutput(const CopyOutputArguments& arg)
+	{
+		for ( ; ; )
+		{
+			char buffer[16384];
+			DWORD read = 0;
+			if (!ReadFile(arg.Source.get(), buffer, sizeof(buffer) / sizeof(buffer[0]),
+				&read, nullptr))
+			{
+				unsigned lastError = GetLastError();
+				switch (lastError)
+				{
+				default:
+					;
+				}
+
+				break;
+			}
+
+			//Write the output to the destination.
+			WriteFile(arg.Destination.get(), buffer, read, &read, nullptr);
+		}
+	}
 }
