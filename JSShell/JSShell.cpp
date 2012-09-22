@@ -9,6 +9,7 @@ namespace {
 	struct ExecutionArguments
 	{
 		bool RunInteractively;
+		TCHAR BasePath[MAX_PATH];
 		std::vector<TCHAR*> FilesToExecute;
 		std::vector<TCHAR*> ShellArguments;
 	};
@@ -30,6 +31,18 @@ int _tmain(int argc, _TCHAR* argv[])
 	ExecutionArguments arguments;
 	arguments.RunInteractively = false;
 
+	//First find our executable's directory. We will find Stub.js and
+	//js.exe there
+	{
+		TCHAR drive[MAX_PATH];
+		TCHAR directory[MAX_PATH];
+		_tsplitpath_s(argv[0], drive, MAX_PATH, directory, MAX_PATH, nullptr, 0, nullptr, 0);
+
+		_tcscpy_s(arguments.BasePath, drive);
+		_tcscpy_s(arguments.BasePath + _tcslen(arguments.BasePath),
+			MAX_PATH - _tcslen(arguments.BasePath), directory);
+	}
+	
 	for (int i = 1; i < argc; ++i)
 	{
 		if (_tcscmp(_T("-f"), argv[i]) == 0 && i + 1 < argc)
@@ -61,8 +74,8 @@ namespace {
 		PROCESS_INFORMATION jsShellInfo = { 0 };
 
 		//Create our command line.
-		TCHAR cmdLine[MAX_PATH];
-		_tcscpy_s(cmdLine, _T("js -U -f Stub.js -i"));
+		TCHAR cmdLine[MAX_PATH * 4];
+		wsprintf(cmdLine, L"%sjs.exe -U -f %sStub.js -i", arguments.BasePath, arguments.BasePath);
 
 		//Create our process creation information.
 		jsShellStartupInfo.cb = sizeof(jsShellStartupInfo);
