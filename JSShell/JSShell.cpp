@@ -198,7 +198,7 @@ namespace {
 			StreamJavaScriptShellCommand("evaluate('with (window) {", pipe);
 
 			KernelHandle fileHandle(CreateFile(*i, GENERIC_READ, 0, nullptr,
-				OPEN_ALWAYS, 0, nullptr));
+				OPEN_EXISTING, 0, nullptr));
 			if (!fileHandle)
 			{
 				unsigned lastError = GetLastError();
@@ -209,7 +209,7 @@ namespace {
 					break;
 				}
 
-				return;
+				continue;
 			}
 
 			//Send the file to the Shell.
