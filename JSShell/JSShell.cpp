@@ -272,7 +272,7 @@ namespace {
 		if (!InWith)
 		{
 			InWith = true;
-			const char const Header[] = "with (window) {";
+			const char Header[] = "with (window) {";
 			buffer.insert(buffer.begin(), Header, Header + sizeof(Header) - 1);
 		}
 
@@ -286,7 +286,7 @@ namespace {
 		if (InWith && newline)
 		{
 			InWith = false;
-			const char const Footer[] = "}";
+			const char Footer[] = "}";
 			buffer.insert(buffer.begin() + (newline - &buffer.front()),
 				Footer, Footer + sizeof(Footer) - 1);
 		}
