@@ -1,6 +1,6 @@
 #pragma once
 
-template<typename HandleType, typename HandleCloseFunctionType, HandleCloseFunctionType Close> class Handle
+template<typename HandleType, typename HandleCloseFunctionType, HandleCloseFunctionType Close, HandleType InvalidHandle> class Handle
 {
 public:
 	Handle()
@@ -43,6 +43,12 @@ public:
 		Instance = handle;
 	}
 
+	/// Checks whether the current handle is valid.
+	operator bool() const
+	{
+		return Instance != InvalidHandle;
+	}
+
 private:
 	Handle(const Handle&);
 
@@ -50,4 +56,4 @@ private:
 	HandleType Instance;
 };
 
-typedef Handle<HANDLE, BOOL (__stdcall*)(HANDLE), CloseHandle> KernelHandle;
+typedef Handle<HANDLE, BOOL (__stdcall*)(HANDLE), CloseHandle, INVALID_HANDLE_VALUE> KernelHandle;
