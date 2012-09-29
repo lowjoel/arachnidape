@@ -65,7 +65,7 @@ var window = new (function() {
 	this.console = new consoleType();
 	this.alert = print;
 	this.prompt = function(message) {
-		print(message + ": ");
+		putstr(message + ": ");
 		return readline();
 	}
 });
