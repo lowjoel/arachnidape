@@ -287,16 +287,23 @@ namespace {
 	void JavaScriptStdOutFilter(std::vector<char>& buffer)
 	{
 		char* bufferFront = &buffer.front();
-		bool shellPromptOnly = !strcmp(bufferFront, "js> ");
+		bool shellPromptOnly = buffer.size() == 4 && !memcmp(bufferFront, "js> ", 4);
 		std::vector<char>::iterator shellPromptString;
 		{
-			char* str = bufferFront;
+			std::vector<char> searchBuffer(buffer.begin(), buffer.end());
+			searchBuffer.push_back('\0');
+			char* str = &searchBuffer.front();
 			shellPromptString = buffer.end();
 
 			//Try to find the last occurrance of \r\njs>
 			while ((str = strstr(str, "\r\njs> ")) != nullptr)
 			{
-				shellPromptString = buffer.begin() + (str - bufferFront);
+				size_t offset = str - bufferFront;
+				if (offset > buffer.size())
+					break;
+
+				shellPromptString = buffer.begin() + offset;
+				++str;
 			}
 
 			//See if it ends with the prompt.
