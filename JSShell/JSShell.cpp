@@ -194,9 +194,6 @@ namespace {
 		for (std::vector<TCHAR*>::const_iterator i = files.begin();
 			i != files.end(); ++i)
 		{
-			//Send the opening command
-			StreamJavaScriptShellCommand("evaluate('with (window) {", pipe);
-
 			KernelHandle fileHandle(CreateFile(*i, GENERIC_READ, 0, nullptr,
 				OPEN_EXISTING, 0, nullptr));
 			if (!fileHandle)
@@ -211,6 +208,9 @@ namespace {
 
 				continue;
 			}
+
+			//Send the opening command
+			StreamJavaScriptShellCommand("evaluate('with (window) {", pipe);
 
 			//Send the file to the Shell.
 			char buffer[65536];
