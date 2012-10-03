@@ -290,17 +290,16 @@ namespace {
 	{
 		char* bufferFront = &buffer.front();
 		bool shellPromptOnly = buffer.size() == 4 && !memcmp(bufferFront, "js> ", 4);
-		std::vector<char>::iterator shellPromptString;
+		std::vector<char>::iterator shellPromptString = buffer.end();
 		{
 			std::vector<char> searchBuffer(buffer.begin(), buffer.end());
 			searchBuffer.push_back('\0');
 			char* str = &searchBuffer.front();
-			shellPromptString = buffer.end();
 
 			//Try to find the last occurrance of \r\njs>
 			while ((str = strstr(str, "\r\njs> ")) != nullptr)
 			{
-				size_t offset = str - bufferFront;
+				size_t offset = str - &searchBuffer.front();
 				if (offset > buffer.size())
 					break;
 
@@ -355,6 +354,7 @@ namespace {
 		if (InWith && newline)
 		{
 			InWith = false;
+			InCommandEntry = false;
 			const char Footer[] = "}";
 			buffer.insert(buffer.begin() + (newline - &buffer.front()),
 				Footer, Footer + sizeof(Footer) - 1);
