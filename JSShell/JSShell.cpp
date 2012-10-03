@@ -274,9 +274,28 @@ namespace {
 	bool InCommandEntry = false;
 	void JavaScriptStdOutFilter(std::vector<char>& buffer)
 	{
-		bool shellPromptOnly = !strcmp(&buffer.front(), "js> ");
-		char* shellPromptString = strstr(&buffer.front(), "\r\njs> ");
-		if (shellPromptOnly || shellPromptString)
+		char* bufferFront = &buffer.front();
+		bool shellPromptOnly = !strcmp(bufferFront, "js> ");
+		std::vector<char>::iterator shellPromptString;
+		{
+			char* str = bufferFront;
+			shellPromptString = buffer.end();
+
+			//Try to find the last occurrance of \r\njs>
+			while ((str = strstr(str, "\r\njs> ")) != nullptr)
+			{
+				shellPromptString = buffer.begin() + (str - bufferFront);
+			}
+
+			//See if it ends with the prompt.
+			if (shellPromptString != buffer.end())
+			{
+				if (shellPromptString + 6 != buffer.end())
+					shellPromptString = buffer.end();
+			}
+		}
+
+		if (shellPromptOnly || shellPromptString != buffer.end())
 		{
 			InCommandEntry = true;
 
@@ -285,8 +304,7 @@ namespace {
 				if (shellPromptOnly)
 					buffer.clear();
 				else
-					buffer.erase(buffer.begin() + (shellPromptString - &buffer.front()),
-						buffer.end());
+					buffer.erase(shellPromptString, buffer.end());
 			}
 		}
 		else
