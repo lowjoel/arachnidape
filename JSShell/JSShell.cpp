@@ -207,7 +207,7 @@ namespace {
 				switch (lastError)
 				{
 				case ERROR_FILE_NOT_FOUND:
-					fwprintf(stderr, _T("can't open %s: No such file or directory"), *i);
+					fwprintf(stderr, _T("can't open %s: No such file or directory\r\n"), *i);
 					break;
 				}
 
