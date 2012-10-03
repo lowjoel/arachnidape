@@ -30,6 +30,10 @@ namespace {
 
 	/// Filter state which will filter out all JavaScript shell prompts.
 	bool SuppressShellPrompt = true;
+	
+	/// The input event object. This will be signaled only when the program is ready
+	/// to accept input.
+	HANDLE InputEvent = nullptr;
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -148,6 +152,9 @@ namespace {
 		jsShellThread = KernelHandle(jsShellInfo.hThread);
 
 		//Create threads to handle stdout and stderr
+		KernelHandle inputEvent(CreateEvent(nullptr, false, false, nullptr));
+		InputEvent = inputEvent.get();
+
 		KernelHandle thisStdOutWrite = GetStdHandle(STD_OUTPUT_HANDLE);
 		CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite, JavaScriptStdOutFilter };
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
@@ -159,6 +166,8 @@ namespace {
 		//Before we do stdin (for interactivity), we need to load all the files
 		//the user specified in order.
 		LoadJavaScriptSources(arguments.FilesToExecute, stdInWrite.get());
+
+		WaitForSingleObject(InputEvent, INFINITE);
 		
 		//Then we handle the situation where we may need interactivity, or not.
 		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
@@ -213,6 +222,9 @@ namespace {
 
 				continue;
 			}
+
+			//Wait for the shell to accept input.
+			WaitForSingleObject(InputEvent, INFINITE);
 
 			//Send the opening command
 			StreamJavaScriptShellCommand("evaluate('with (window) {", pipe);
@@ -298,6 +310,7 @@ namespace {
 		if (shellPromptOnly || shellPromptString != buffer.end())
 		{
 			InCommandEntry = true;
+			SetEvent(InputEvent);
 
 			if (SuppressShellPrompt)
 			{
