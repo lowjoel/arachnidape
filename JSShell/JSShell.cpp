@@ -274,12 +274,20 @@ namespace {
 	bool InCommandEntry = false;
 	void JavaScriptStdOutFilter(std::vector<char>& buffer)
 	{
-		if (!strcmp(&buffer.front(), "js> ") || strstr(&buffer.front(), "\r\njs> "))
+		bool shellPromptOnly = !strcmp(&buffer.front(), "js> ");
+		char* shellPromptString = strstr(&buffer.front(), "\r\njs> ");
+		if (shellPromptOnly || shellPromptString)
 		{
 			InCommandEntry = true;
 
 			if (SuppressShellPrompt)
-				buffer.clear();
+			{
+				if (shellPromptOnly)
+					buffer.clear();
+				else
+					buffer.erase(buffer.begin() + (shellPromptString - &buffer.front()),
+						buffer.end());
+			}
 		}
 		else
 		{
