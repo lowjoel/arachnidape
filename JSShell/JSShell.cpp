@@ -167,13 +167,15 @@ namespace {
 		//the user specified in order.
 		LoadJavaScriptSources(arguments.FilesToExecute, stdInWrite.get());
 
-		WaitForSingleObject(InputEvent, INFINITE);
-		
 		//Then we handle the situation where we may need interactivity, or not.
 		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
 		if (arguments.RunInteractively)
 		{
+			//We can now enable the js> prompt.
+			WaitForSingleObject(InputEvent, INFINITE);
 			SuppressShellPrompt = false;
+			SendJavaScriptShellCommand("", stdInWrite.get());
+	
 			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite, JavaScriptStdInFilter };
 			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
 		}
