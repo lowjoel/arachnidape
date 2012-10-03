@@ -281,7 +281,7 @@ namespace {
 
 			//Send closing command.
 			StreamJavaScriptShellCommand("}', { fileName: \"" + wcs2utf8(*i) +
-				"\", newContext: true });\r\n", pipe);
+				"\", newContext: true }), undefined;\r\n", pipe);
 		}
 	}
 	
