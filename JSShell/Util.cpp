@@ -69,7 +69,13 @@ void CopyOutput(const CopyOutputArguments& arg)
 		//Allow filtering
 		buffer.resize(read);
 		if (arg.Filter)
+		{
 			arg.Filter(buffer);
+
+			//Check if we have to just pass on.
+			if (buffer.empty())
+				continue;
+		}
 
 		//Write the output to the destination.
 		WriteFile(arg.Destination.get(), &buffer.front(), buffer.size(), &read, nullptr);
