@@ -25,7 +25,11 @@ namespace {
 
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
 
+	void JavaScriptStdOutFilter(std::vector<char>& buffer);
 	void JavaScriptStdInFilter(std::vector<char>& buffer);
+
+	/// Filter state which will filter out all JavaScript shell prompts.
+	bool SuppressShellPrompt = true;
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -145,7 +149,7 @@ namespace {
 
 		//Create threads to handle stdout and stderr
 		KernelHandle thisStdOutWrite = GetStdHandle(STD_OUTPUT_HANDLE);
-		CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite };
+		CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite, JavaScriptStdOutFilter };
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
 
 		KernelHandle thisStdErrWrite = GetStdHandle(STD_ERROR_HANDLE);
@@ -160,6 +164,7 @@ namespace {
 		KernelHandle thisStdInRead = GetStdHandle(STD_INPUT_HANDLE);
 		if (arguments.RunInteractively)
 		{
+			SuppressShellPrompt = false;
 			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite, JavaScriptStdInFilter };
 			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
 		}
@@ -265,11 +270,27 @@ namespace {
 				"\", newContext: true });\r\n", pipe);
 		}
 	}
+	
+	bool InCommandEntry = false;
+	void JavaScriptStdOutFilter(std::vector<char>& buffer)
+	{
+		if (!strcmp(&buffer.front(), "js> ") || strstr(&buffer.front(), "\r\njs> "))
+		{
+			InCommandEntry = true;
 
-	__declspec(thread) bool InWith = false;
+			if (SuppressShellPrompt)
+				buffer.clear();
+		}
+		else
+		{
+			InCommandEntry = false;
+		}
+	}
+
 	void JavaScriptStdInFilter(std::vector<char>& buffer)
 	{
-		if (!InWith)
+		static bool InWith = false;
+		if (!InWith && InCommandEntry)
 		{
 			InWith = true;
 			const char Header[] = "with (window) {";
