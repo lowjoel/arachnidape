@@ -280,7 +280,7 @@ namespace {
 			}
 
 			//Send closing command.
-			StreamJavaScriptShellCommand("}', { fileName: \"" + wcs2utf8(*i) +
+			StreamJavaScriptShellCommand("\\r\\n}', { fileName: \"" + wcs2utf8(*i) +
 				"\", newContext: true }), undefined;\r\n", pipe);
 		}
 	}
