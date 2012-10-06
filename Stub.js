@@ -21,25 +21,31 @@ var window = new (function() {
 			
 			//Formats an object for display.
 			function format(x) {
-				if ((Array.isArray && Array.isArray(x)) ||
-					Object.prototype.toString.call(x) === '[object Array]') {
-					var result = "[";
-					
-					for (var i = 0, j = x.length; i < j; ++i) {
-						result += format(x[i]) + ", ";
+				function isArray(x) {
+					return (Array.isArray && Array.isArray(x)) ||
+						Object.prototype.toString.call(x) === '[object Array]';
+				}
+
+				function formatArray(x) {
+					if (isArray(x)) {
+						var result = "[";
+
+						for (var i = 0, j = x.length; i < j; ++i) {
+							result += formatArray(x[i]) + ", ";
+						}
+
+						if (x.length) {
+							result = result.substr(0, result.length - 2);
+						}
+
+						result += "]";
+						return result;
+					} else if (typeof x === "string") {
+						return '"' + x + '"';
 					}
-					
-					if (x.length) {
-						result = result.substr(0, result.length - 2);
-					}
-					
-					result += "]";
-					return result;
-				} else if (typeof x === "string") {
-					return '"' + x + '"';
 				}
 				
-				return x;
+				return isArray(x) ? formatArray(x) : x;
 			}
 			
 			//Print the output.
