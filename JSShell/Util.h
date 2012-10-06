@@ -10,6 +10,7 @@ struct CopyOutputArguments
 	const KernelHandle& Destination;
 
 	void (*Filter)(std::vector<char>& buffer);
+	void (*PostFilter)();
 };
 
 void CopyOutput(const CopyOutputArguments& arg);

@@ -26,6 +26,8 @@ namespace {
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
 
 	void JavaScriptStdOutFilter(std::vector<char>& buffer);
+	void JavaScriptStdErrFilter(std::vector<char>& buffer);
+	void JavaScriptStdErrPostFilter();
 	void JavaScriptStdInFilter(std::vector<char>& buffer);
 
 	/// Filter state which will filter out all JavaScript shell prompts.
@@ -160,7 +162,7 @@ namespace {
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
 
 		KernelHandle thisStdErrWrite = GetStdHandle(STD_ERROR_HANDLE);
-		CopyOutputArguments stdErrReaderArgs = { stdErrRead, thisStdErrWrite };
+		CopyOutputArguments stdErrReaderArgs = { stdErrRead, thisStdErrWrite, JavaScriptStdErrFilter, JavaScriptStdErrPostFilter };
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr);
 
 		//Before we do stdin (for interactivity), we need to load all the files
@@ -331,6 +333,25 @@ namespace {
 		else
 		{
 			InCommandEntry = false;
+		}
+	}
+
+	WORD consoleAttributes = 0;
+	void JavaScriptStdErrFilter(std::vector<char>& buffer)
+	{
+		CONSOLE_SCREEN_BUFFER_INFO info = {0};
+		if (GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &info))
+			consoleAttributes = info.wAttributes;
+
+		SetConsoleTextAttribute(GetStdHandle(STD_ERROR_HANDLE), FOREGROUND_RED | FOREGROUND_INTENSITY);
+	}
+
+	void JavaScriptStdErrPostFilter()
+	{
+		if (consoleAttributes)
+		{
+			SetConsoleTextAttribute(GetStdHandle(STD_ERROR_HANDLE), consoleAttributes);
+			consoleAttributes = 0;
 		}
 	}
 

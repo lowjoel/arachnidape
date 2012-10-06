@@ -80,6 +80,12 @@ void CopyOutput(const CopyOutputArguments& arg)
 		//Write the output to the destination.
 		WriteFile(arg.Destination.get(), &buffer.front(), buffer.size(), &read, nullptr);
 		FlushFileBuffers(arg.Destination.get());
+
+		//Filter post-processing
+		if (arg.PostFilter)
+		{
+			arg.PostFilter();
+		}
 	}
 }
 
