@@ -26,6 +26,7 @@ namespace {
 	void LoadJavaScriptSources(const std::vector<TCHAR*>& files, HANDLE pipe);
 
 	void JavaScriptStdOutFilter(std::vector<char>& buffer);
+	void JavaScriptStdOutPostFilter();
 	void JavaScriptStdErrFilter(std::vector<char>& buffer);
 	void JavaScriptStdErrPostFilter();
 	void JavaScriptStdInFilter(std::vector<char>& buffer);
@@ -33,9 +34,13 @@ namespace {
 	/// Filter state which will filter out all JavaScript shell prompts.
 	bool SuppressShellPrompt = true;
 	
-	/// The input event object. This will be signaled only when the program is ready
+	/// The input event object. This will be signaled only when the shell is ready
 	/// to accept input.
 	HANDLE InputEvent = nullptr;
+
+	/// The output mutex. This will be signaled only when the shell is
+	/// ready to accept output.
+	CRITICAL_SECTION OutputEvent = { 0 };
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -156,9 +161,10 @@ namespace {
 		//Create threads to handle stdout and stderr
 		KernelHandle inputEvent(CreateEvent(nullptr, false, false, nullptr));
 		InputEvent = inputEvent.get();
+		InitializeCriticalSection(&OutputEvent);
 
 		KernelHandle thisStdOutWrite = GetStdHandle(STD_OUTPUT_HANDLE);
-		CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite, JavaScriptStdOutFilter };
+		CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite, JavaScriptStdOutFilter, JavaScriptStdOutPostFilter };
 		_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
 
 		KernelHandle thisStdErrWrite = GetStdHandle(STD_ERROR_HANDLE);
@@ -290,6 +296,9 @@ namespace {
 	bool InCommandEntry = false;
 	void JavaScriptStdOutFilter(std::vector<char>& buffer)
 	{
+		//Obtain a lock on stdout.
+		EnterCriticalSection(&OutputEvent);
+
 		char* bufferFront = &buffer.front();
 		bool shellPromptOnly = buffer.size() == 4 && !memcmp(bufferFront, "js> ", 4);
 		std::vector<char>::iterator shellPromptString = buffer.end();
@@ -336,9 +345,18 @@ namespace {
 		}
 	}
 
+	void JavaScriptStdOutPostFilter()
+	{
+		//Release the lock on stdout
+		LeaveCriticalSection(&OutputEvent);
+	}
+
 	WORD consoleAttributes = 0;
 	void JavaScriptStdErrFilter(std::vector<char>& buffer)
 	{
+		//Lock stdout
+		EnterCriticalSection(&OutputEvent);
+
 		CONSOLE_SCREEN_BUFFER_INFO info = {0};
 		if (GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &info))
 			consoleAttributes = info.wAttributes;
@@ -353,6 +371,9 @@ namespace {
 			SetConsoleTextAttribute(GetStdHandle(STD_ERROR_HANDLE), consoleAttributes);
 			consoleAttributes = 0;
 		}
+
+		//Release the lock on stdout
+		LeaveCriticalSection(&OutputEvent);
 	}
 
 	void JavaScriptStdInFilter(std::vector<char>& buffer)
