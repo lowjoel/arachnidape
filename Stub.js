@@ -42,6 +42,8 @@ var window = new (function() {
 						return result;
 					} else if (typeof x === "string") {
 						return '"' + x + '"';
+					} else {
+						return x;
 					}
 				}
 				
