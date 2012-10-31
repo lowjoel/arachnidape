@@ -85,7 +85,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 namespace {
 
-	void StartJavaScriptShell(const ExecutionArguments& arguments)
+	std::vector<HANDLE> StartJavaScriptShellInternal(const ExecutionArguments& arguments)
 	{
 		STARTUPINFO jsShellStartupInfo = { 0 };
 		PROCESS_INFORMATION jsShellInfo = { 0 };
@@ -159,17 +159,22 @@ namespace {
 		jsShellThread = KernelHandle(jsShellInfo.hThread);
 
 		//Create threads to handle stdout and stderr
+		std::vector<HANDLE> threadHandles;
 		KernelHandle inputEvent(CreateEvent(nullptr, false, false, nullptr));
 		InputEvent = inputEvent.get();
 		InitializeCriticalSection(&OutputEvent);
 
 		KernelHandle thisStdOutWrite = GetStdHandle(STD_OUTPUT_HANDLE);
 		CopyOutputArguments stdOutReaderArgs = { stdOutRead, thisStdOutWrite, JavaScriptStdOutFilter, JavaScriptStdOutPostFilter };
-		_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr);
+		threadHandles.push_back(reinterpret_cast<HANDLE>(
+			_beginthreadex(nullptr, 0, &CopyOutput, &stdOutReaderArgs, 0, nullptr))
+		);
 
 		KernelHandle thisStdErrWrite = GetStdHandle(STD_ERROR_HANDLE);
 		CopyOutputArguments stdErrReaderArgs = { stdErrRead, thisStdErrWrite, JavaScriptStdErrFilter, JavaScriptStdErrPostFilter };
-		_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr);
+		threadHandles.push_back(reinterpret_cast<HANDLE>(
+			_beginthreadex(nullptr, 0, &CopyOutput, &stdErrReaderArgs, 0, nullptr))
+		);
 
 		//Before we do stdin (for interactivity), we need to load all the files
 		//the user specified in order.
@@ -185,7 +190,9 @@ namespace {
 			SendJavaScriptShellCommand("", stdInWrite.get());
 	
 			CopyOutputArguments stdInReaderArgs = { thisStdInRead, stdInWrite, JavaScriptStdInFilter };
-			_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr);
+			threadHandles.push_back(reinterpret_cast<HANDLE>(
+				_beginthreadex(nullptr, 0, &CopyOutput, &stdInReaderArgs, 0, nullptr))
+			);
 		}
 		else
 		{
@@ -194,6 +201,16 @@ namespace {
 
 		//Wait for the process to terminate
 		WaitForSingleObject(jsShellProcess.get(), INFINITE);
+
+		//Wait for our threads to all drain the pipes
+		return threadHandles;
+	}
+
+	void StartJavaScriptShell(const ExecutionArguments& arguments)
+	{
+		std::vector<HANDLE> threads(StartJavaScriptShellInternal(arguments));
+
+		WaitForMultipleObjects(threads.size(), &threads.front(), true, INFINITE);
 	}
 
 	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe)
@@ -387,6 +404,7 @@ namespace {
 		}
 
 		const char* newline = nullptr;
+		if (!buffer.empty())
 		{
 			char* bufferPtr = &buffer.front();
 			newline = strstr(bufferPtr, "\r\n");
