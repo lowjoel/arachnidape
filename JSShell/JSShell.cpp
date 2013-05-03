@@ -211,6 +211,9 @@ namespace {
 		std::vector<HANDLE> threads(StartJavaScriptShellInternal(arguments));
 
 		WaitForMultipleObjects(threads.size(), &threads.front(), true, INFINITE);
+
+		FlushFileBuffers(GetStdHandle(STD_OUTPUT_HANDLE));
+		FlushFileBuffers(GetStdHandle(STD_ERROR_HANDLE));
 	}
 
 	void SendJavaScriptShellCommand(const std::string& command, HANDLE pipe)
